@@ -202,8 +202,8 @@ function HomePage({ onNav, onSelect }: { onNav: (p: Page) => void; onSelect: (m:
     <div>
       <section className="h-[100dvh] w-full overflow-hidden bg-[#0a5c52]">
         <picture>
-          <source media="(min-width: 768px)" srcSet={`${base}images/hero-desktop.png?v=2`} />
-          <img src={`${base}images/hero-mobile.png?v=2`} alt="Pihu Medical" className="block w-full h-full object-cover object-center" />
+          <source media="(min-width: 768px)" srcSet={`${base}images/hero-desktop.png?v=3`} />
+          <img src={`${base}images/hero-mobile.png?v=3`} alt="Pihu Medical" className="block w-full h-full object-cover object-center" />
         </picture>
       </section>
 
