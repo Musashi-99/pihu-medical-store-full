@@ -1,4 +1,5 @@
 export const WHATSAPP_NUMBER = '919097046343'
+export const ORDER_WHATSAPP_NUMBER = '917277333091'
 
 /** Paste a Google Apps Script web app URL. Each order tap is appended as one row. */
 export const SHEET_WEBHOOK = ''
@@ -419,7 +420,7 @@ export function buildStockMessage(medicine: Medicine) {
 }
 
 export function orderLink(text: string, fallback: string) {
-  const base = `https://wa.me/${WHATSAPP_NUMBER}?text=`
+  const base = `https://wa.me/${ORDER_WHATSAPP_NUMBER}?text=`
   const full = base + encodeURIComponent(text)
   return full.length <= 1900 ? full : base + encodeURIComponent(fallback)
 }
