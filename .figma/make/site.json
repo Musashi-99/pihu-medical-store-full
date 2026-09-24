@@ -1,0 +1,10 @@
+{
+  "description": "Enables users to easily order medicines online and locate nearby medical stores, ensuring quick access to essential healthcare products.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
