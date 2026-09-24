@@ -298,7 +298,6 @@ export function orderErrors(lines: CartLine[], form: CustomerForm, now = new Dat
   const resolved = lines.map(resolveLine).filter((r): r is NonNullable<typeof r> => !!r)
   if (!resolved.length) errors.push('empty')
   if (resolved.some(r => !r.medicine.inStock)) errors.push('oos')
-  if (!shopTiming(now).open) errors.push('closed')
   if (form.name.trim().length < 2) errors.push('name')
   if (!/^[6-9]\d{9}$/.test(cleanPhone(form.phone))) errors.push('phone')
   if (!slotsToday(now).some(s => s.id === form.slot)) errors.push('slot')
@@ -309,7 +308,6 @@ export function orderErrors(lines: CartLine[], form: CustomerForm, now = new Dat
     if (!/^\d{6}$/.test(pin)) errors.push('pin')
     else if (!SERVICE_PINCODES.has(pin)) errors.push('pinArea')
   }
-  if (resolved.some(r => r.medicine.requiresPrescription) && !form.hasPrescription) errors.push('rx')
   return errors
 }
 
@@ -319,18 +317,8 @@ function padEnd(s: string, n: number) {
   return cut + ' '.repeat(Math.max(0, n - [...cut].length))
 }
 
-function padStart(s: string, n: number) {
-  const chars = [...s]
-  const cut = chars.length > n ? chars.slice(0, n).join('') : s
-  return ' '.repeat(Math.max(0, n - [...cut].length)) + cut
-}
-
-function tableRow(no: string, product: string, qty: string, rate: string, amt: string) {
-  return [padEnd(no, 2), padEnd(product, 22), padStart(qty, 3), padStart(rate, 6), padStart(amt, 6)].join(' | ')
-}
-
 function kv(key: string, value: string) {
-  return `${padEnd(key, 8)} | ${value.replace(/\s+/g, ' ').trim()}`
+  return `${key}: ${value.replace(/\s+/g, ' ').trim()}`
 }
 
 export function buildOrderMessage(opts: {
@@ -342,18 +330,15 @@ export function buildOrderMessage(opts: {
   now?: Date
 }) {
   const resolved = opts.lines.map(resolveLine).filter((r): r is NonNullable<typeof r> => !!r)
-  const head = tableRow('No', 'Product', 'Qty', 'Rate', 'Amt')
-  const rule = '-'.repeat(head.length)
-  const rows: string[] = []
-  resolved.forEach((r, i) => {
-    rows.push(tableRow(String(i + 1), r.pack.name, String(r.qty), String(r.pack.price), String(r.total)))
-    rows.push(tableRow('', `${r.medicine.brand} · ${r.pack.unit}`, '', '', ''))
-  })
+  const rows = resolved.map((r, i) => [
+    `${i + 1}. ${r.pack.name}`,
+    `${r.medicine.brand} · ${r.pack.unit}`,
+    `Qty ${r.qty} x ₹${r.pack.price} = ₹${r.total}`,
+  ].join('\n'))
   const grand = resolved.reduce((s, r) => s + r.total, 0)
   const slot = slotsToday(opts.now).find(s => s.id === opts.form.slot)
   const slotText = slot?.label.en ?? opts.form.slot
   const mode = opts.form.mode === 'delivery' ? 'Home delivery' : 'Store pickup'
-  const rx = resolved.filter(r => r.medicine.requiresPrescription)
 
   const intro = opts.lang === 'hi'
     ? `नमस्ते Pihu Medical, Tekari\nOrder ${opts.ref}`
@@ -367,36 +352,21 @@ export function buildOrderMessage(opts: {
   ]
   if (opts.form.mode === 'delivery') {
     detail.push(kv('Area', opts.form.area), kv('PIN', opts.form.pincode.replace(/\D/g, '')))
+    detail.push(`Address: ${opts.form.address.replace(/\s+/g, ' ').trim().slice(0, 160)}`)
   }
   if (opts.src) detail.push(kv('Via', opts.src))
 
-  const parts = [
+  return [
     intro,
     '',
-    '```',
-    head,
-    rule,
-    ...rows,
-    rule,
-    tableRow('', 'TOTAL', '', '', String(grand)),
-    '```',
+    rows.join('\n\n'),
     '',
-    '```',
+    `TOTAL ₹${grand}`,
+    '',
     ...detail,
-    '```',
-  ]
-
-  if (opts.form.mode === 'delivery') {
-    parts.push('', `Address: ${opts.form.address.replace(/\s+/g, ' ').trim().slice(0, 160)}`)
-  }
-  if (rx.length && opts.form.hasPrescription) {
-    const rxLine = opts.lang === 'hi'
-      ? `Rx: हाँ — ${rx.map(r => r.pack.name).join(', ')}`
-      : `Prescription: Yes — ${rx.map(r => r.pack.name).join(', ')}`
-    parts.push('', rxLine)
-  }
-  parts.push('', opts.lang === 'hi' ? 'कृपया कन्फर्म करें। धन्यवाद।' : 'Please confirm this order. Thank you.')
-  return parts.join('\n')
+    '',
+    opts.lang === 'hi' ? 'कृपया कन्फर्म करें। धन्यवाद।' : 'Please confirm this order. Thank you.',
+  ].join('\n')
 }
 
 export function buildStockMessage(medicine: Medicine) {

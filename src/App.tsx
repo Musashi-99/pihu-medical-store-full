@@ -19,7 +19,6 @@ import {
   resolveLine,
   setProductQuery,
   shopBadge,
-  shopTiming,
   slotsToday,
   track,
   logOrder,
@@ -430,7 +429,6 @@ function ProductDetailPage({ medicine, onOpen, onNav }: { medicine: Medicine; on
   const [added, setAdded] = useState(false)
   const [copied, setCopied] = useState(false)
   const pack = packs.find(p => p.id === packId) ?? packs[0]
-  const open = shopTiming().open
   const related = relatedMedicines(medicine.id)
 
   const share = async () => {
@@ -565,7 +563,7 @@ function ProductDetailPage({ medicine, onOpen, onNav }: { medicine: Medicine; on
                 <button onClick={share} className="w-full py-3 rounded-xl font-semibold text-sm border border-gray-200 text-gray-700">
                   {copied ? t.copied : t.share}
                 </button>
-                {!open && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">{t.closedNote} {shopBadge()[lang]}</p>}
+                <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">{shopBadge()[lang]}</p>
                 {medicine.requiresPrescription && (
                   <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs">
                     <Icons.Warning /> {t.rxNote}
@@ -639,7 +637,6 @@ function CartPage({ onNav }: { onNav: (p: Page) => void }) {
   const [sent, setSent] = useState(false)
   const orderRef = useRef(`PM-${Date.now().toString().slice(-6)}`)
   const errorRef = useRef<HTMLDivElement>(null)
-  const open = shopTiming().open
   const slots = slotsToday()
 
   useEffect(() => {
@@ -648,7 +645,6 @@ function CartPage({ onNav }: { onNav: (p: Page) => void }) {
   }, [form])
 
   const resolved = lines.map(resolveLine).filter((r): r is NonNullable<ReturnType<typeof resolveLine>> => !!r)
-  const needsRx = resolved.some(r => r.medicine.requiresPrescription)
   const grand = resolved.reduce((s, r) => s + r.total, 0)
   const src = currentSource()
   const message = resolved.length
@@ -765,85 +761,57 @@ function CartPage({ onNav }: { onNav: (p: Page) => void }) {
 
           <div>
             <p className="font-semibold text-sm text-gray-700 mb-2">{t.slot}</p>
-            <div className="hide-scrollbar flex gap-2 overflow-x-auto pb-1">
+            <div className="flex flex-wrap gap-2">
               {slots.map(slot => (
-                <button type="button" key={slot.id} onClick={() => set({ slot: slot.id })} className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold border ${form.slot === slot.id ? 'bg-[#0d7d6e] text-white border-[#0d7d6e]' : 'bg-white text-gray-700 border-gray-200'} ${bad('slot') && !form.slot ? 'border-red-300' : ''}`}>
+                <button type="button" key={slot.id} onClick={() => set({ slot: slot.id })} className={`px-3 py-2 rounded-xl text-xs font-bold border ${form.slot === slot.id ? 'bg-[#0d7d6e] text-white border-[#0d7d6e]' : 'bg-white text-gray-700 border-gray-200'} ${bad('slot') && !form.slot ? 'border-red-300' : ''}`}>
                   {slot.label[lang]}
                 </button>
               ))}
             </div>
           </div>
 
-          {needsRx && (
-            <label className={`flex items-start gap-3 text-sm rounded-xl border px-4 py-3 ${bad('rx') ? 'border-red-300 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
-              <input type="checkbox" checked={form.hasPrescription} onChange={e => set({ hasPrescription: e.target.checked })} className="mt-1" />
-              <span className="text-amber-900 font-medium">{t.rxCheck}</span>
-            </label>
-          )}
-
           <div>
             <h2 className="font-black text-lg text-gray-900">{t.slip}</h2>
             <p className="text-xs text-gray-500 mt-1 mb-3">{t.slipHint}</p>
-            <div className="overflow-x-auto rounded-2xl border border-gray-200">
-              <table className="w-full min-w-[36rem] text-sm border-collapse">
-                <thead>
-                  <tr className="bg-[#0d7d6e] text-white text-left">
-                    <th className="px-3 py-2 font-semibold">{t.no}</th>
-                    <th className="px-3 py-2 font-semibold">{t.product}</th>
-                    <th className="px-3 py-2 font-semibold">{t.brand}</th>
-                    <th className="px-3 py-2 font-semibold">{t.pack}</th>
-                    <th className="px-3 py-2 font-semibold text-right">{t.qty}</th>
-                    <th className="px-3 py-2 font-semibold text-right">{t.rate}</th>
-                    <th className="px-3 py-2 font-semibold text-right">{t.amount}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resolved.map((r, i) => (
-                    <tr key={`${r.medicine.id}-${r.pack.id}`} className="border-t border-gray-100">
-                      <td className="px-3 py-2 text-gray-500">{i + 1}</td>
-                      <td className="px-3 py-2 font-semibold text-gray-900">{r.pack.name}</td>
-                      <td className="px-3 py-2 text-gray-600">{r.medicine.brand}</td>
-                      <td className="px-3 py-2 text-gray-600">{r.pack.unit}</td>
-                      <td className="px-3 py-2 text-right">{r.qty}</td>
-                      <td className="px-3 py-2 text-right">₹{r.pack.price}</td>
-                      <td className="px-3 py-2 text-right font-semibold">₹{r.total}</td>
-                    </tr>
-                  ))}
-                  <tr className="border-t border-gray-200 bg-[#e6f4f2] font-black">
-                    <td className="px-3 py-2" colSpan={6}>{t.total}</td>
-                    <td className="px-3 py-2 text-right">₹{grand}</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="rounded-2xl border border-gray-200 overflow-hidden">
+              {resolved.map((r, i) => (
+                <div key={`${r.medicine.id}-${r.pack.id}`} className="border-t border-gray-100 first:border-t-0 px-3 py-3 min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-semibold text-gray-900 text-sm min-w-0 break-words">
+                      <span className="text-gray-400 font-mono mr-1.5">{i + 1}</span>
+                      {r.pack.name}
+                    </p>
+                    <p className="shrink-0 font-black text-sm text-[#0d7d6e]">₹{r.total}</p>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 break-words">{r.medicine.brand} · {r.pack.unit}</p>
+                  <p className="text-xs text-gray-600 mt-1">{t.qty} {r.qty} · {t.rate} ₹{r.pack.price}</p>
+                </div>
+              ))}
+              <div className="border-t border-gray-200 bg-[#e6f4f2] px-3 py-2.5 flex items-center justify-between font-black text-sm">
+                <span>{t.total}</span>
+                <span>₹{grand}</span>
+              </div>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-gray-200 mt-3">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-left">
-                    <th className="px-3 py-2 font-semibold text-gray-500" colSpan={2}>{t.previewCustomer}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    [t.fullName, form.name || '—'],
-                    [t.mobile, form.phone || '—'],
-                    [t.mode, form.mode === 'delivery' ? t.delivery : t.pickup],
-                    [t.slot, slots.find(s => s.id === form.slot)?.label[lang] || '—'],
-                    ...(form.mode === 'delivery' ? [[t.area, form.area || '—'], [t.pincode, form.pincode || '—'], [t.fullAddress, form.address || '—']] : []),
-                    ...(src ? [[t.via, src]] : []),
-                  ].map(([label, value]) => (
-                    <tr key={label} className="border-t border-gray-100">
-                      <td className="px-3 py-2 text-gray-500 w-28 sm:w-36 align-top">{label}</td>
-                      <td className="px-3 py-2 font-medium text-gray-900 break-words">{value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="rounded-2xl border border-gray-200 mt-3 overflow-hidden">
+              <p className="px-3 py-2 font-semibold text-sm text-gray-500 bg-gray-50">{t.previewCustomer}</p>
+              {[
+                [t.fullName, form.name || '—'],
+                [t.mobile, form.phone || '—'],
+                [t.mode, form.mode === 'delivery' ? t.delivery : t.pickup],
+                [t.slot, slots.find(s => s.id === form.slot)?.label[lang] || '—'],
+                ...(form.mode === 'delivery' ? [[t.area, form.area || '—'], [t.pincode, form.pincode || '—'], [t.fullAddress, form.address || '—']] : []),
+                ...(src ? [[t.via, src]] : []),
+              ].map(([label, value]) => (
+                <div key={label} className="border-t border-gray-100 px-3 py-2 min-w-0">
+                  <p className="text-xs text-gray-500">{label}</p>
+                  <p className="text-sm font-medium text-gray-900 break-words">{value}</p>
+                </div>
+              ))}
             </div>
 
             {message && (
-              <pre className="mt-3 overflow-x-auto rounded-2xl bg-[#10211e] text-[#d7f5ee] text-[11px] leading-relaxed p-4 font-mono whitespace-pre">{message}</pre>
+              <pre className="mt-3 max-w-full overflow-x-hidden rounded-2xl bg-[#10211e] text-[#d7f5ee] text-[11px] leading-relaxed p-3 font-mono whitespace-pre-wrap break-words">{message}</pre>
             )}
           </div>
 
@@ -853,14 +821,13 @@ function CartPage({ onNav }: { onNav: (p: Page) => void }) {
             </div>
           )}
 
-          {!open && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">{t.errClosed} {shopBadge()[lang]}</p>}
           {sent && (
             <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium">
               <Icons.Check /> {t.ready}
             </div>
           )}
 
-          <button type="submit" disabled={!open} className="w-full flex items-center justify-center gap-3 bg-[#25d366] disabled:bg-gray-300 disabled:shadow-none text-white py-4 rounded-2xl font-bold text-base sm:text-lg shadow-lg shadow-[#25d366]/30">
+          <button type="submit" className="w-full flex items-center justify-center gap-3 bg-[#25d366] text-white py-4 rounded-2xl font-bold text-base sm:text-lg shadow-lg shadow-[#25d366]/30">
             <Icons.WhatsApp /> {sent ? t.opening : t.send}
           </button>
         </form>
